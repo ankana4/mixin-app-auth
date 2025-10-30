@@ -1,0 +1,10 @@
+<h1>Posts Page</h1>
+<p>Welcome, {{ user.username }}! <a href="{% url 'logout' %}">Logout</a></p>
+
+<ul>
+    {% for post in posts %}
+        <li>{{ post.title }}</li>
+    {% empty %}
+        <li>No posts yet.</li>
+    {% endfor %}
+</ul>
