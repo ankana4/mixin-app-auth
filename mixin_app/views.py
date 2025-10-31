@@ -2,7 +2,6 @@
 from django.db import IntegrityError, DataError
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
-from django.contrib.auth.hashers import check_password
 import re
 import bcrypt
 from mixin_app.models import User
@@ -26,7 +25,8 @@ class ValidateData(GenericAPIView):
         salt = bcrypt.gensalt()
         
         hashed_password = bcrypt.hashpw(password_bytes, salt)
-        return hashed_password
+        # Decode bytes to string for storage in CharField
+        return hashed_password.decode('utf-8')
     
     def validate_mobile(mobile_no):
         mobile = str(mobile_no or "").strip()
@@ -93,11 +93,28 @@ class LoginView(ValidateData):
         except User.DoesNotExist:
             return JsonResponse({'error':'Invalid username or password.'})   
         
-        if check_password(password, user.password):
+        stored_password = user.password
+        
+        if isinstance(stored_password, bytes):
+            stored_password_bytes = stored_password
+        elif isinstance(stored_password, str):
+            stored_password = stored_password.strip()  
+            if stored_password.startswith("b'") and stored_password.endswith("'"):
+                hash_string = stored_password[2:-1]
+                stored_password_bytes = hash_string.encode('utf-8')
+            elif stored_password.startswith('$'):
+                stored_password_bytes = stored_password.encode('utf-8')
+            else:
+                stored_password_bytes = stored_password.encode('utf-8')
+        else:
+            stored_password_bytes = str(stored_password).encode('utf-8')
+        password_bytes = password.encode('utf-8')
+        
+        if bcrypt.checkpw(password_bytes, stored_password_bytes):
             
             return JsonResponse({
                 'message': 'Login is successful',
-                'sattus': 200,
+                'status': 200,
                 'data':{
                     'username': user.username,
                     'email': user.email,
