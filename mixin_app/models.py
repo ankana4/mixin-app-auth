@@ -6,7 +6,7 @@ class User(models.Model):
     username=models.CharField(max_length=30, null=True)
     email=models.EmailField(unique=True)
     phone_no=models.CharField(max_length=10, null=True)
-    password=models.CharField(max_length=8, null=True)
+    password=models.CharField(max_length=100, null=True)
     address=models.CharField(max_length=255, null=True)
     created_at=models.DateTimeField(auto_now_add=True)
     updated_at=models.DateTimeField(auto_now=True)

@@ -1,16 +1,10 @@
 # views.py
-from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import TemplateView, View
-from .forms import UserRegisterForm
 from django.db import IntegrityError, DataError
 from django.core.exceptions import ValidationError
-from .models import Post
 from django.http import JsonResponse
 import re
+import bcrypt
 from mixin_app.models import User
-from django.contrib.auth.views import LoginView, LogoutView
 from rest_framework.generics import GenericAPIView
 
 # Protected page: only logged-in users can see
@@ -26,6 +20,12 @@ class ValidateData(GenericAPIView):
             else:
                 email = email_name + "@" + domain_part.lower()
             return email
+    def hash_password(password):
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        
+        hashed_password = bcrypt.hashpw(password_bytes, salt)
+        return hashed_password
     
     def validate_mobile(mobile_no):
         mobile = str(mobile_no or "").strip()
@@ -58,14 +58,16 @@ class RegisterView(ValidateData):
         clean_email = ValidateData.validate_email(user_email)
         clean_mobile_no = ValidateData.validate_mobile(phone_number)
         clean_username = ValidateData.validate_username(username)
+        secure_password = ValidateData.hash_password(password)
         try:
             user = User.objects.create(
                 email = clean_email,
                 phone_no = clean_mobile_no,
                 username = clean_username,
                 address = address,
-                password = password
+                password = secure_password
             )
+            print("user", user)    
         except (ValueError, ValidationError) as e:
             return JsonResponse({'error': str(e)}, status=400)
             
@@ -87,21 +89,7 @@ class RegisterView(ValidateData):
         return JsonResponse(data)
 
 
-# Registration view
-class RegistereView(View):
-    def get(self, request):
-        form = UserRegisterForm()
-        return render(request, 'register.html', {'form': form})
-
+class LoginView(ValidateData):
     def post(self, request):
-        form = UserRegisterForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)  
-            return redirect('post-list')
-        return render(request, 'register.html', {'form': form})
+        username = request.data.get('username')
 
-
-
-class CustomLogoutView(LogoutView):
-    next_page = '/login/'  # Redirect after logout
