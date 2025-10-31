@@ -5,6 +5,7 @@ from django.http import JsonResponse
 import re
 import bcrypt
 from mixin_app.models import User
+from mixin_app.models import Post
 from rest_framework.generics import GenericAPIView
 
 # Protected page: only logged-in users can see
@@ -111,7 +112,8 @@ class LoginView(ValidateData):
         password_bytes = password.encode('utf-8')
         
         if bcrypt.checkpw(password_bytes, stored_password_bytes):
-            
+            # Mark session as logged in
+            request.session['user_id'] = user.id
             return JsonResponse({
                 'message': 'Login is successful',
                 'status': 200,
@@ -124,3 +126,40 @@ class LoginView(ValidateData):
         else:
             return JsonResponse({'error': 'Invalid username or password'})
 
+
+class LoginRequiredMixin:
+    def dispatch(self, request, *args, **kwargs):
+        user_id = request.session.get('user_id')
+        if not user_id:
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+        try:
+            request.user_obj = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            request.session.flush()
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+
+class CreatePostView(LoginRequiredMixin, GenericAPIView):
+    def post(self, request):
+        title = request.data.get('title')
+        content = request.data.get('content') 
+
+        if not content:
+            return JsonResponse({'error': 'content (or text) is required'}, status=400)
+       
+        post = Post.objects.create(
+            title=title,
+            content=content,
+            author=request.user_obj,
+        )
+
+        return JsonResponse({
+            'message': 'Post created',
+            'status': 201,
+            'data': {
+                'post_id': post.id,
+                'title': post.title,
+                'content': post.content,
+            }
+        }, status=201)
