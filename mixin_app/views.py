@@ -2,6 +2,7 @@
 from django.db import IntegrityError, DataError
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
+from django.contrib.auth.hashers import check_password
 import re
 import bcrypt
 from mixin_app.models import User
@@ -35,16 +36,6 @@ class ValidateData(GenericAPIView):
             raise ValueError("Invalid mobile number: must be 10 digits and start with 6-9.")
 
         return mobile
-    
-    def validate_username(username):
-        username = (username or "").strip()
-
-        pattern = r'^[A-Za-z0-9_]{3,20}$'
-
-        if re.match(pattern, username):
-            return username
-        else:
-            return None 
         
 class RegisterView(ValidateData):
     def post(self, request):
@@ -57,17 +48,15 @@ class RegisterView(ValidateData):
         
         clean_email = ValidateData.validate_email(user_email)
         clean_mobile_no = ValidateData.validate_mobile(phone_number)
-        clean_username = ValidateData.validate_username(username)
         secure_password = ValidateData.hash_password(password)
         try:
             user = User.objects.create(
                 email = clean_email,
                 phone_no = clean_mobile_no,
-                username = clean_username,
+                username = username,
                 address = address,
                 password = secure_password
             )
-            print("user", user)    
         except (ValueError, ValidationError) as e:
             return JsonResponse({'error': str(e)}, status=400)
             
@@ -76,12 +65,12 @@ class RegisterView(ValidateData):
     
         except DataError as e:
             return JsonResponse({'error': 'Invalid data length or format — please check your input fields.'}, status=400)    
-        
+        print("userrr ", user.username)
         data = {
                 'message': 'Success',
                 'status': 200,
                 'data': {
-                    
+                    'user_id': user.id,
                     'username': user.username,
                     'email': user.email,
                 }
@@ -92,4 +81,29 @@ class RegisterView(ValidateData):
 class LoginView(ValidateData):
     def post(self, request):
         username = request.data.get('username')
+        password = request.data.get('password')
+        print("password ", password)
+        
+        if not username or not password:
+            return JsonResponse({'error': 'Username or Password field is required.'}, status=400)
+
+        try:
+            user = User.objects.get(username=username)
+            print("Password ", user.password)
+        except User.DoesNotExist:
+            return JsonResponse({'error':'Invalid username or password.'})   
+        
+        if check_password(password, user.password):
+            
+            return JsonResponse({
+                'message': 'Login is successful',
+                'sattus': 200,
+                'data':{
+                    'username': user.username,
+                    'email': user.email,
+                }
+            })         
+            
+        else:
+            return JsonResponse({'error': 'Invalid username or password'})
 
