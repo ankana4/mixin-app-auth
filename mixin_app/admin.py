@@ -1,3 +1,6 @@
 from django.contrib import admin
+from mixin_app.models import User
 
-# Register your models here.
+
+class Admin(admin.ModelAdmin):
+    fields=['username', 'email', 'phone_no', 'password', 'address', 'created_at', 'updated_at']

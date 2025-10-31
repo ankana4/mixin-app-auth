@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'mixin_app',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -83,7 +84,7 @@ WSGI_APPLICATION = 'mixin.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'mixin_db',
+        'NAME': 'mixin_database',
         'USER': 'root',
         'PASSWORD': 'root',
         'HOST': 'localhost',
