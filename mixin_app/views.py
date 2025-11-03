@@ -83,7 +83,7 @@ class LoginView(ValidateData):
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
-        print("password ", password)
+        
         
         if not username or not password:
             return JsonResponse({'error': 'Username or Password field is required.'}, status=400)
@@ -139,9 +139,19 @@ class LoginRequiredMixin:
             return JsonResponse({'error': 'Authentication required'}, status=401)
         return super().dispatch(request, *args, **kwargs)
 
+    def get_logged_in_user(self, request):
+        user_id = request.session.get('user_id')
+        
+        if not user_id:
+            return None
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return None    
 
 class CreatePostView(LoginRequiredMixin, GenericAPIView):
     def post(self, request):
+        user_obj = self.get_logged_in_user(request)
         title = request.data.get('title')
         content = request.data.get('content') 
 
@@ -151,7 +161,7 @@ class CreatePostView(LoginRequiredMixin, GenericAPIView):
         post = Post.objects.create(
             title=title,
             content=content,
-            author=request.user_obj,
+            author=user_obj,
         )
 
         return JsonResponse({
